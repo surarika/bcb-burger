@@ -472,7 +472,8 @@ function renderQty() {
             <div class="sauce-btns">
               ${m.sauceOptions.map(s => {
                 const isActive = chosen === s;
-                return `<button class="sauce-btn ${isActive?'active':''}" onclick="selectSauce('${id}',${i},'${s}')">${s}</button>`;
+                const sIdx = m.sauceOptions.indexOf(s);
+                return `<button class="sauce-btn ${isActive?'active':''}" onclick="selectSauceByIndex('${id}',${i},${sIdx})">${s}</button>`;
               }).join('')}
             </div>
             ${allMissing ? `<div class="sauce-missing"><i class="fa fa-triangle-exclamation"></i> Choisir un(e) ${m.sauceLabel.toLowerCase()}</div>` : ''}
@@ -510,6 +511,11 @@ function changeQty(id, d) {
   }
   document.getElementById('qn-' + id).textContent = newQty;
   renderQty(); renderSummary();
+}
+
+function selectSauceByIndex(id, slotIndex, sauceIndex) {
+  const sauce = MENU[id].sauceOptions[sauceIndex];
+  selectSauce(id, slotIndex, sauce);
 }
 
 function selectSauce(id, slotIndex, sauce) {
