@@ -182,6 +182,31 @@ html,body{height:100%;font-family:'Nunito',sans-serif;background:var(--light);co
 
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.2);border-radius:4px}
+
+/* ── MODES ── */
+
+/* MODE CLIENT : page commande épurée */
+.client-order-wrap{max-width:600px;margin:0 auto;padding:16px 14px 80px}
+.client-order-wrap .card{margin-bottom:12px}
+.client-hero{text-align:center;padding:14px 0 6px}
+.client-hero h1{font-family:'Fredoka One',cursive;font-size:26px;color:var(--orange)}
+.client-hero p{font-size:13px;color:var(--muted);margin-top:4px}
+
+/* Keypad modal */
+.keypad-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px}
+.keypad-box{background:var(--white);border-radius:18px;padding:24px;max-width:320px;width:100%;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,0.3)}
+.keypad-title{font-family:'Fredoka One',cursive;font-size:20px;color:var(--navy);margin-bottom:6px}
+.keypad-sub{font-size:13px;color:var(--muted);margin-bottom:16px}
+.keypad-display{font-family:'Fredoka One',cursive;font-size:32px;letter-spacing:8px;color:var(--navy);background:#f4f1e8;border-radius:10px;padding:12px;margin-bottom:16px;min-height:58px;display:flex;align-items:center;justify-content:center}
+.keypad-display.error{color:var(--red);animation:shake 0.3s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.keypad-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.kbtn{padding:14px;border-radius:12px;border:2px solid var(--border);background:var(--white);font-family:'Fredoka One',cursive;font-size:22px;color:var(--navy);cursor:pointer;touch-action:manipulation;transition:all 0.1s}
+.kbtn:active{background:var(--orange);border-color:var(--orange);transform:scale(0.94)}
+.kbtn-del{background:#ffeaea;color:var(--red);border-color:#ffcdd2}
+.kbtn-ok{background:var(--orange);color:var(--navy);border-color:var(--orange)}
+.keypad-cancel{padding:10px 24px;border-radius:20px;border:2px solid var(--border);background:var(--white);font-family:'Nunito',sans-serif;font-weight:700;font-size:14px;color:var(--muted);cursor:pointer;touch-action:manipulation}
+
 </style>
 </head>
 <body>
@@ -198,24 +223,25 @@ html,body{height:100%;font-family:'Nunito',sans-serif;background:var(--light);co
     <div class="header-right">
       <div class="header-clock" id="clock">--:--</div>
       <div class="header-date" id="today-date">--</div>
+      <button id="mode-toggle-btn" onclick="handleModeBtn()" style="margin-top:5px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:20px;padding:3px 10px;color:rgba(255,255,255,0.4);font-family:'Nunito',sans-serif;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:0.3px;transition:all 0.2s;display:block;margin-left:auto"></button>
     </div>
   </div>
 
   <!-- NAV -->
-  <div class="nav">
+  <div class="nav" id="main-nav">
     <button class="nav-btn active" onclick="switchTab('new',this)">
       <i class="fa fa-plus"></i> Commande
     </button>
-    <button class="nav-btn" onclick="switchTab('current',this)">
+    <button class="nav-btn server-only" onclick="switchTab('current',this)">
       <i class="fa fa-receipt"></i> En cours <span class="badge" id="badge-count">0</span>
     </button>
-    <button class="nav-btn" onclick="switchTab('archive',this)">
+    <button class="nav-btn server-only" onclick="switchTab('archive',this)">
       <i class="fa fa-box-archive"></i> Archives
     </button>
-    <button class="nav-btn" onclick="switchTab('recipes',this)">
+    <button class="nav-btn server-only" onclick="switchTab('recipes',this)">
       <i class="fa fa-book-open"></i> Recettes
     </button>
-    <button class="nav-btn" onclick="switchTab('inventory',this)">
+    <button class="nav-btn server-only" onclick="switchTab('inventory',this)">
       <i class="fa fa-boxes-stacked"></i> Inventaire
     </button>
   </div>
@@ -341,6 +367,31 @@ html,body{height:100%;font-family:'Nunito',sans-serif;background:var(--light);co
 <!-- POPUP RECETTE -->
 <div class="popup-overlay" id="recipe-popup" style="display:none" onclick="closePopup(event)">
   <div class="popup-box" id="popup-content"></div>
+</div>
+
+
+<!-- KEYPAD CODE -->
+<div class="keypad-overlay" id="keypad-overlay" style="display:none">
+  <div class="keypad-box">
+    <div class="keypad-title"><i class="fa fa-lock" style="color:var(--orange)"></i> Mode Serveur</div>
+    <div class="keypad-sub">Entrez le code d'accès</div>
+    <div class="keypad-display" id="keypad-display">·  ·  ·  ·  ·  ·</div>
+    <div class="keypad-grid">
+      <button class="kbtn" onclick="kpadPress('1')">1</button>
+      <button class="kbtn" onclick="kpadPress('2')">2</button>
+      <button class="kbtn" onclick="kpadPress('3')">3</button>
+      <button class="kbtn" onclick="kpadPress('4')">4</button>
+      <button class="kbtn" onclick="kpadPress('5')">5</button>
+      <button class="kbtn" onclick="kpadPress('6')">6</button>
+      <button class="kbtn" onclick="kpadPress('7')">7</button>
+      <button class="kbtn" onclick="kpadPress('8')">8</button>
+      <button class="kbtn" onclick="kpadPress('9')">9</button>
+      <button class="kbtn kbtn-del" onclick="kpadDel()"><i class="fa fa-delete-left"></i></button>
+      <button class="kbtn" onclick="kpadPress('0')">0</button>
+      <button class="kbtn kbtn-ok" onclick="kpadValidate()"><i class="fa fa-check"></i></button>
+    </div>
+    <button class="keypad-cancel" onclick="closeKeypad()">Annuler</button>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -826,10 +877,104 @@ function toast(msg) {
   setTimeout(() => t.classList.remove('show'), 2800);
 }
 
+
+// ── MODES ──
+const SERVER_CODE = '090922';
+let isServerMode = false;
+let kpadValue = '';
+
+function applyMode() {
+  const btn = document.getElementById('mode-toggle-btn');
+  const serverOnlyBtns = document.querySelectorAll('.server-only');
+
+  if(isServerMode) {
+    // Mode Serveur : tous les onglets visibles, bouton très discret indique "Mode Client"
+    if(btn) {
+      btn.innerHTML = '<i class="fa fa-user" style="margin-right:4px"></i>Mode Client';
+      btn.style.color = 'rgba(255,255,255,0.35)';
+      btn.onclick = switchToClient;
+    }
+    serverOnlyBtns.forEach(b => b.style.display = '');
+  } else {
+    // Mode Client : onglets cachés, bouton discret indique "Mode Serveur"
+    if(btn) {
+      btn.innerHTML = '<i class="fa fa-lock" style="margin-right:4px"></i>Mode Serveur';
+      btn.style.color = 'rgba(255,255,255,0.35)';
+      btn.onclick = openKeypad;
+    }
+    serverOnlyBtns.forEach(b => b.style.display = 'none');
+    // Forcer l'onglet commande
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-new').classList.add('active');
+    const firstBtn = document.querySelector('.nav-btn');
+    if(firstBtn) firstBtn.classList.add('active');
+  }
+  try { localStorage.setItem('bcb_mode', isServerMode ? '1' : '0'); } catch(e) {}
+}
+
+function switchToClient() {
+  isServerMode = false;
+  applyMode();
+  toast('👤 Mode Client activé');
+}
+
+function openKeypad() {
+  kpadValue = '';
+  updateKpadDisplay();
+  document.getElementById('keypad-overlay').style.display = 'flex';
+}
+
+function closeKeypad() {
+  document.getElementById('keypad-overlay').style.display = 'none';
+  kpadValue = '';
+}
+
+function kpadPress(d) {
+  if(kpadValue.length >= 6) return;
+  kpadValue += d;
+  updateKpadDisplay();
+  if(kpadValue.length === 6) setTimeout(kpadValidate, 150);
+}
+
+function kpadDel() {
+  kpadValue = kpadValue.slice(0, -1);
+  updateKpadDisplay();
+}
+
+function updateKpadDisplay() {
+  const disp = document.getElementById('keypad-display');
+  disp.classList.remove('error');
+  const filled = kpadValue.split('').map(d => d);
+  const dots = Array(6).fill('·');
+  filled.forEach((d,i) => dots[i] = '●');
+  disp.textContent = dots.join('  ');
+}
+
+function kpadValidate() {
+  if(kpadValue === SERVER_CODE) {
+    closeKeypad();
+    isServerMode = true;
+    applyMode();
+    toast('🔓 Mode Serveur activé');
+  } else {
+    const disp = document.getElementById('keypad-display');
+    disp.textContent = 'Code incorrect';
+    disp.classList.add('error');
+    setTimeout(() => { kpadValue = ''; updateKpadDisplay(); }, 1200);
+  }
+}
+
 // ── INIT ──
 loadAll();
 updateBadge();
 document.getElementById('ticket-display').textContent = peekTicket();
+// Restore mode — serveur par défaut
+try {
+  const savedMode = localStorage.getItem('bcb_mode');
+  isServerMode = savedMode === null ? true : savedMode === '1';
+} catch(e) { isServerMode = true; }
+applyMode();
 </script>
 </body>
 </html>
