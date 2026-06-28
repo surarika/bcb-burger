@@ -207,6 +207,18 @@ html,body{height:100%;font-family:'Nunito',sans-serif;background:var(--light);co
 .kbtn-ok{background:var(--orange);color:var(--navy);border-color:var(--orange)}
 .keypad-cancel{padding:10px 24px;border-radius:20px;border:2px solid var(--border);background:var(--white);font-family:'Nunito',sans-serif;font-weight:700;font-size:14px;color:var(--muted);cursor:pointer;touch-action:manipulation}
 
+
+/* NOTES & RETRAITS */
+.note-section{margin-top:8px;padding-top:8px;border-top:1px dashed #e0ddd5}
+.note-stitle{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:0.4px;margin-bottom:5px}
+.note-stitle i{color:var(--orange);margin-right:3px}
+.remove-tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}
+.remove-tag{padding:4px 10px;border-radius:16px;border:2px solid #ddd;background:var(--white);color:var(--navy);font-family:'Nunito',sans-serif;font-weight:600;font-size:11px;cursor:pointer;transition:all 0.15s;touch-action:manipulation;user-select:none}
+.remove-tag.active{border-color:var(--red);background:#ffeaea;color:var(--red);text-decoration:line-through}
+.note-input{width:100%;padding:7px 10px;border:2px solid #ddd;border-radius:8px;font-family:'Nunito',sans-serif;font-size:13px;resize:none;-webkit-appearance:none;background:white;transition:border 0.2s}
+.note-input:focus{outline:none;border-color:var(--orange)}
+.oc-note{font-size:11px;color:#e65100;margin-top:3px;font-style:italic}
+.oc-remove{font-size:11px;color:var(--red);margin-top:2px}
 </style>
 </head>
 <body>
@@ -422,6 +434,8 @@ const INGREDIENTS = [
 // selectedSauces: {menuId: [sauce_pour_unité_1, sauce_pour_unité_2, ...]}
 let selectedItems = {};
 let selectedSauces = {};
+let selectedRemovals = {}; // {menuId: Set of removed ingredients}
+let selectedNotes = {};   // {menuId: free text note}
 let orders = [];
 let archives = {};
 let dailyCounter = {};
@@ -491,10 +505,14 @@ function toggleItem(id) {
   if(selectedItems[id]) {
     delete selectedItems[id];
     delete selectedSauces[id];
+    delete selectedRemovals[id];
+    delete selectedNotes[id];
     btn.classList.remove('selected');
   } else {
     selectedItems[id] = 1;
-    if(MENU[id].sauceOptions) selectedSauces[id] = [null]; // 1 slot null
+    if(MENU[id].sauceOptions) selectedSauces[id] = [null];
+    selectedRemovals[id] = [];
+    selectedNotes[id] = '';
     btn.classList.add('selected');
   }
   renderQty(); renderSummary();
@@ -515,15 +533,16 @@ function renderQty() {
     let sauceHtml = '';
     if(m.sauceOptions) {
       const slots = selectedSauces[id] || [];
+      // Options sauce + Sans sauce
+      const allSauceOpts = [...m.sauceOptions, 'Sans sauce'];
       sauceHtml = `<div class="sauce-slots">` +
         slots.map((chosen, i) => {
           const allMissing = !chosen;
           return `<div class="sauce-slot">
             <div class="sauce-slot-label"><i class="fa fa-droplet" style="color:var(--orange);margin-right:3px"></i>${m.sauceLabel} burger ${i+1}</div>
             <div class="sauce-btns">
-              ${m.sauceOptions.map(s => {
+              ${allSauceOpts.map((s, sIdx) => {
                 const isActive = chosen === s;
-                const sIdx = m.sauceOptions.indexOf(s);
                 return `<button class="sauce-btn ${isActive?'active':''}" onclick="selectSauceByIndex('${id}',${i},${sIdx})">${s}</button>`;
               }).join('')}
             </div>
@@ -532,6 +551,25 @@ function renderQty() {
         }).join('') +
         `</div>`;
     }
+    // Ingrédients retirables (sans Sauce au choix / Topping au choix)
+    const removableIngs = m.ingredients.filter(i => !i.toLowerCase().includes('sauce') && !i.toLowerCase().includes('topping'));
+    const removals = selectedRemovals[id] || [];
+    const noteVal = selectedNotes[id] || '';
+    const removeSection = removableIngs.length ? `
+      <div class="note-section">
+        <div class="note-stitle"><i class="fa fa-ban"></i> Retirer un ingrédient</div>
+        <div class="remove-tags">
+          ${removableIngs.map(ing => {
+            const isRemoved = removals.includes(ing);
+            return `<button class="remove-tag ${isRemoved?'active':''}" onclick="toggleRemoval('${id}','${ing.replace(/'/g,"\'")}')">${ing}</button>`;
+          }).join('')}
+        </div>
+      </div>` : '';
+    const noteSection = `
+      <div class="note-section">
+        <div class="note-stitle"><i class="fa fa-pen-to-square"></i> Note libre</div>
+        <textarea class="note-input" rows="2" placeholder="Ex: bien cuit, allergie noix…" oninput="updateNote('${id}',this.value)">${noteVal}</textarea>
+      </div>`;
     return `<div class="item-block">
       <div class="qty-row">
         <span style="flex:1;padding-right:8px">${m.name}</span>
@@ -542,6 +580,8 @@ function renderQty() {
         </div>
       </div>
       ${sauceHtml}
+      ${removeSection}
+      ${noteSection}
     </div>`;
   }).join('');
 }
@@ -564,8 +604,22 @@ function changeQty(id, d) {
   renderQty(); renderSummary();
 }
 
+function toggleRemoval(id, ing) {
+  if(!selectedRemovals[id]) selectedRemovals[id] = [];
+  const idx = selectedRemovals[id].indexOf(ing);
+  if(idx === -1) selectedRemovals[id].push(ing);
+  else selectedRemovals[id].splice(idx, 1);
+  renderQty(); renderSummary();
+}
+
+function updateNote(id, val) {
+  selectedNotes[id] = val;
+  renderSummary();
+}
+
 function selectSauceByIndex(id, slotIndex, sauceIndex) {
-  const sauce = MENU[id].sauceOptions[sauceIndex];
+  const allOpts = [...MENU[id].sauceOptions, 'Sans sauce'];
+  const sauce = allOpts[sauceIndex];
   selectSauce(id, slotIndex, sauce);
 }
 
@@ -602,9 +656,15 @@ function renderSummary() {
         sauceInfo = `<div style="font-size:11px;color:#e65100;margin-top:2px;padding-left:10px"><i class="fa fa-triangle-exclamation"></i> ${m.sauceLabel} manquant(e)</div>`;
       }
     }
+    const removals = selectedRemovals[id] || [];
+    const note = selectedNotes[id] || '';
+    const removeLine = removals.length ? `<div style="font-size:11px;color:var(--red);margin-top:1px;padding-left:10px"><i class="fa fa-ban"></i> Sans : ${removals.join(', ')}</div>` : '';
+    const noteLine = note ? `<div style="font-size:11px;color:#888;margin-top:1px;padding-left:10px;font-style:italic"><i class="fa fa-pen-to-square"></i> ${note}</div>` : '';
     return `<div style="padding:4px 0;border-bottom:1px dashed #f0e8c0">
       <div class="sumline" style="border:none;padding:0"><span>${selectedItems[id]}× ${m.name}</span><span>${sub.toFixed(2)}€</span></div>
       ${sauceInfo}
+      ${removeLine}
+      ${noteLine}
     </div>`;
   }).join('');
   html += `<div class="sumline" style="padding-top:8px"><span>Total</span><span>${total.toFixed(2)}€</span></div>`;
@@ -632,6 +692,8 @@ function validateOrder() {
     id: Date.now(), num, nom,
     items: JSON.parse(JSON.stringify(selectedItems)),
     sauces: JSON.parse(JSON.stringify(selectedSauces)),
+    removals: JSON.parse(JSON.stringify(selectedRemovals)),
+    notes: JSON.parse(JSON.stringify(selectedNotes)),
     time: new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
     date: getDateKey(), dateLabel: getTodayLabel(), done: false
   };
@@ -646,7 +708,7 @@ function validateOrder() {
     });
   });
   // Reset formulaire sans décocher les boutons (gain de rapidité)
-  selectedItems = {}; selectedSauces = {};
+  selectedItems = {}; selectedSauces = {}; selectedRemovals = {}; selectedNotes = {};
   document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('selected'));
   document.getElementById('inp-nom').value = '';
   renderQty(); renderSummary();
@@ -690,6 +752,8 @@ function renderOrders() {
           <span class="oc-qty">${o.items[id]}</span>
         </div>
         ${sauceText ? `<div class="oc-sauce"><i class="fa fa-droplet" style="color:var(--orange);font-size:10px"></i> ${sauceText}</div>` : ''}
+        ${(o.removals&&o.removals[id]&&o.removals[id].length) ? `<div class="oc-remove"><i class="fa fa-ban"></i> Sans : ${o.removals[id].join(', ')}</div>` : ''}
+        ${(o.notes&&o.notes[id]) ? `<div class="oc-note"><i class="fa fa-pen-to-square"></i> ${o.notes[id]}</div>` : ''}
       </li>`;
     }).join('');
     return `<div class="order-card">
@@ -757,7 +821,11 @@ function renderArchive() {
           slots.forEach(s => { if(s) groups[s]=(groups[s]||0)+1; });
           sauceStr = ' <span style="color:#888;font-size:11px">— ' + Object.entries(groups).map(([s,n])=>n>1?`${n}× ${s}`:s).join(', ') + '</span>';
         }
-        return `${o.items[id]}× ${MENU[id].name}${sauceStr}`;
+        let removeStr = '';
+        if(o.removals&&o.removals[id]&&o.removals[id].length) removeStr = ` <span style="color:var(--red);font-size:11px">sans ${o.removals[id].join(', ')}</span>`;
+        let noteStr = '';
+        if(o.notes&&o.notes[id]) noteStr = ` <span style="color:#888;font-size:11px;font-style:italic">(${o.notes[id]})</span>`;
+        return `${o.items[id]}× ${MENU[id].name}${sauceStr}${removeStr}${noteStr}`;
       }).join('<br>');
       return `<tr>
         <td style="font-family:'Fredoka One',cursive;color:var(--orange)">#${o.num}</td>
